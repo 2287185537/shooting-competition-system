@@ -1,0 +1,186 @@
+{% extends "base.html" %}
+
+{% block title %}系统设置{% endblock %}
+
+{% block content %}
+<div class="container">
+    <div class="row justify-content-center">
+        <div class="col-md-8">
+            <div class="card shadow-sm">
+                <div class="card-body">
+                    <h2 class="card-title mb-4">系统设置</h2>
+                    
+                    <form method="POST" class="needs-validation" novalidate>
+                        <div class="mb-4">
+                            <h5>基本设置</h5>
+                            <hr>
+                            
+                            <div class="mb-3">
+                                <label for="site_name" class="form-label">系统名称</label>
+                                <input type="text" 
+                                       class="form-control" 
+                                       id="site_name" 
+                                       name="site_name" 
+                                       value="{{ settings.site_name }}"
+                                       required>
+                            </div>
+                            
+                            <div class="mb-3">
+                                <label for="admin_email" class="form-label">管理员邮箱</label>
+                                <input type="email" 
+                                       class="form-control" 
+                                       id="admin_email" 
+                                       name="admin_email" 
+                                       value="{{ settings.admin_email }}">
+                                <div class="form-text">用于接收系统通知和错误报告</div>
+                            </div>
+                        </div>
+                        
+                        <div class="mb-4">
+                            <h5>比赛设置</h5>
+                            <hr>
+                            
+                            <div class="mb-3">
+                                <label class="form-label">比赛类别</label>
+                                <div id="categories_container">
+                                    {% for category in settings.competition_categories %}
+                                        <div class="input-group mb-2">
+                                            <input type="text" 
+                                                   class="form-control" 
+                                                   name="categories[]" 
+                                                   value="{{ category }}"
+                                                   required>
+                                            <button type="button" 
+                                                    class="btn btn-outline-danger"
+                                                    onclick="removeCategory(this)">
+                                                删除
+                                            </button>
+                                        </div>
+                                    {% endfor %}
+                                </div>
+                                <button type="button" 
+                                        class="btn btn-outline-primary btn-sm mt-2"
+                                        onclick="addCategory()">
+                                    添加类别
+                                </button>
+                            </div>
+                            
+                            <div class="mb-3">
+                                <label for="max_rounds" class="form-label">最大轮次</label>
+                                <input type="number" 
+                                       class="form-control" 
+                                       id="max_rounds" 
+                                       name="max_rounds" 
+                                       value="{{ settings.max_rounds }}"
+                                       min="1" 
+                                       max="10"
+                                       required>
+                                <div class="form-text">每场比赛的最大轮次数</div>
+                            </div>
+                            
+                            <div class="mb-3">
+                                <label for="registration_close_hours" class="form-label">报名截止时间</label>
+                                <div class="input-group">
+                                    <input type="number" 
+                                           class="form-control" 
+                                           id="registration_close_hours" 
+                                           name="registration_close_hours" 
+                                           value="{{ settings.registration_close_hours }}"
+                                           min="0" 
+                                           required>
+                                    <span class="input-group-text">小时</span>
+                                </div>
+                                <div class="form-text">比赛开始前多少小时停止报名</div>
+                            </div>
+                        </div>
+                        
+                        <div class="mb-4">
+                            <h5>功能开关</h5>
+                            <hr>
+                            
+                            <div class="form-check form-switch">
+                                <input type="checkbox" 
+                                       class="form-check-input" 
+                                       id="enable_notifications" 
+                                       name="enable_notifications" 
+                                       {% if settings.enable_notifications %}checked{% endif %}>
+                                <label class="form-check-label" for="enable_notifications">
+                                    启用系统通知
+                                </label>
+                            </div>
+                        </div>
+                        
+                        <div class="d-grid gap-2">
+                            <button type="submit" class="btn btn-primary">
+                                保存设置
+                            </button>
+                            <a href="{{ url_for('admin.dashboard') }}" class="btn btn-outline-secondary">
+                                返回仪表板
+                            </a>
+                        </div>
+                    </form>
+                </div>
+            </div>
+        </div>
+    </div>
+</div>
+{% endblock %}
+
+{% block scripts %}
+<script>
+function addCategory() {
+    const container = document.getElementById('categories_container');
+    const div = document.createElement('div');
+    div.className = 'input-group mb-2';
+    div.innerHTML = `
+        <input type="text" 
+               class="form-control" 
+               name="categories[]" 
+               required>
+        <button type="button" 
+                class="btn btn-outline-danger"
+                onclick="removeCategory(this)">
+            删除
+        </button>
+    `;
+    container.appendChild(div);
+}
+
+function removeCategory(button) {
+    const container = document.getElementById('categories_container');
+    const inputs = container.getElementsByTagName('input');
+    if (inputs.length > 1) {  // 保持至少一个类别
+        button.closest('.input-group').remove();
+    } else {
+        alert('至少需要保留一个比赛类别');
+    }
+}
+
+// 表单验证
+document.querySelector('form').addEventListener('submit', function(event) {
+    if (!this.checkValidity()) {
+        event.preventDefault();
+        event.stopPropagation();
+    }
+    this.classList.add('was-validated');
+    
+    // 检查类别是否有重复
+    const categories = new Set();
+    let hasDuplicate = false;
+    document.getElementsByName('categories[]').forEach(input => {
+        const category = input.value.trim();
+        if (categories.has(category)) {
+            hasDuplicate = true;
+            input.setCustomValidity('比赛类别不能重复');
+        } else {
+            input.setCustomValidity('');
+            categories.add(category);
+        }
+    });
+    
+    if (hasDuplicate) {
+        event.preventDefault();
+    }
+});
+</script>
+{% endblock %}

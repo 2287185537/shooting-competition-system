@@ -1,0 +1,196 @@
+{% extends "base.html" %}
+
+{% block title %}管理面板{% endblock %}
+
+{% block content %}
+<div class="container">
+    <h1 class="mb-4">管理面板</h1>
+
+    <!-- 统计卡片 -->
+    <div class="row">
+        <div class="col-md-3 mb-4">
+            <div class="card bg-primary text-white h-100">
+                <div class="card-body">
+                    <div class="d-flex justify-content-between align-items-center">
+                        <div>
+                            <h6 class="text-uppercase mb-2">总用户数</h6>
+                            <h2 class="mb-0">{{ users_count }}</h2>
+                        </div>
+                        <i class="bi bi-people fs-1"></i>
+                    </div>
+                </div>
+                <div class="card-footer d-flex align-items-center justify-content-between">
+                    <a class="small text-white stretched-link" href="{{ url_for('admin.users') }}">查看详情</a>
+                    <i class="bi bi-chevron-right text-white"></i>
+                </div>
+            </div>
+        </div>
+
+        <div class="col-md-3 mb-4">
+            <div class="card bg-success text-white h-100">
+                <div class="card-body">
+                    <div class="d-flex justify-content-between align-items-center">
+                        <div>
+                            <h6 class="text-uppercase mb-2">总比赛数</h6>
+                            <h2 class="mb-0">{{ competitions_count }}</h2>
+                        </div>
+                        <i class="bi bi-trophy fs-1"></i>
+                    </div>
+                </div>
+                <div class="card-footer d-flex align-items-center justify-content-between">
+                    <a class="small text-white stretched-link" href="{{ url_for('admin.competitions') }}">查看详情</a>
+                    <i class="bi bi-chevron-right text-white"></i>
+                </div>
+            </div>
+        </div>
+
+        <div class="col-md-3 mb-4">
+            <div class="card bg-warning text-white h-100">
+                <div class="card-body">
+                    <div class="d-flex justify-content-between align-items-center">
+                        <div>
+                            <h6 class="text-uppercase mb-2">总报名数</h6>
+                            <h2 class="mb-0">{{ registrations_count }}</h2>
+                        </div>
+                        <i class="bi bi-clipboard-check fs-1"></i>
+                    </div>
+                </div>
+                <div class="card-footer d-flex align-items-center justify-content-between">
+                    <a class="small text-white stretched-link" href="{{ url_for('admin.competitions') }}">查看详情</a>
+                    <i class="bi bi-chevron-right text-white"></i>
+                </div>
+            </div>
+        </div>
+
+        <div class="col-md-3 mb-4">
+            <div class="card {% if pending_count > 0 %}bg-danger{% else %}bg-secondary{% endif %} text-white h-100">
+                <div class="card-body">
+                    <div class="d-flex justify-content-between align-items-center">
+                        <div>
+                            <h6 class="text-uppercase mb-2">待审核报名</h6>
+                            <h2 class="mb-0">{{ pending_count }}</h2>
+                        </div>
+                        <i class="bi bi-clock-history fs-1"></i>
+                    </div>
+                </div>
+                <div class="card-footer d-flex align-items-center justify-content-between">
+                    <a class="small text-white stretched-link" href="{{ url_for('admin.pending_registrations') }}">查看详情</a>
+                    <i class="bi bi-chevron-right text-white"></i>
+                </div>
+            </div>
+        </div>
+    </div>
+
+    <div class="row">
+        <!-- 最近的比赛 -->
+        <div class="col-lg-8">
+            <div class="card mb-4">
+                <div class="card-header d-flex justify-content-between align-items-center">
+                    <h5 class="mb-0">最近的比赛</h5>
+                    <a href="{{ url_for('admin.competition_create') }}" class="btn btn-primary btn-sm">
+                        创建比赛
+                    </a>
+                </div>
+                <div class="card-body">
+                    {% if recent_competitions %}
+                        <div class="table-responsive">
+                            <table class="table table-hover">
+                                <thead>
+                                    <tr>
+                                        <th>比赛名称</th>
+                                        <th>日期</th>
+                                        <th>状态</th>
+                                        <th>操作</th>
+                                    </tr>
+                                </thead>
+                                <tbody>
+                                    {% for competition in recent_competitions %}
+                                        <tr>
+                                            <td>{{ competition.name }}</td>
+                                            <td>{{ competition.date.strftime('%Y-%m-%d') }}</td>
+                                            <td>
+                                                {% if competition.status == 'pending' %}
+                                                    <span class="badge bg-info">报名中</span>
+                                                {% elif competition.status == 'ongoing' %}
+                                                    <span class="badge bg-warning">进行中</span>
+                                                {% else %}
+                                                    <span class="badge bg-secondary">已结束</span>
+                                                {% endif %}
+                                            </td>
+                                            <td>
+                                                <a href="{{ url_for('admin.competition_edit', id=competition.id) }}" 
+                                                   class="btn btn-sm btn-outline-primary">
+                                                    编辑
+                                                </a>
+                                            </td>
+                                        </tr>
+                                    {% endfor %}
+                                </tbody>
+                            </table>
+                        </div>
+                    {% else %}
+                        <p class="text-muted mb-0">暂无比赛</p>
+                    {% endif %}
+                </div>
+            </div>
+        </div>
+
+        <!-- 快速操作 -->
+        <div class="col-lg-4">
+            <div class="card mb-4">
+                <div class="card-header">
+                    <h5 class="mb-0">系统管理</h5>
+                </div>
+                <div class="card-body">
+                    <div class="d-grid gap-2">
+                        <a href="{{ url_for('admin.settings') }}" class="btn btn-outline-primary">
+                            <i class="bi bi-gear"></i> 系统设置
+                        </a>
+                        <a href="{{ url_for('admin.view_logs') }}" class="btn btn-outline-secondary">
+                            <i class="bi bi-journal-text"></i> 查看日志
+                        </a>
+                        {% if pending_count > 0 %}
+                            <a href="{{ url_for('admin.pending_registrations') }}" class="btn btn-outline-danger">
+                                <i class="bi bi-clock-history"></i> 待审核报名 
+                                <span class="badge bg-danger">{{ pending_count }}</span>
+                            </a>
+                        {% endif %}
+                    </div>
+                </div>
+            </div>
+
+            <div class="card">
+                <div class="card-header">
+                    <h5 class="mb-0">最近报名</h5>
+                </div>
+                <div class="card-body">
+                    {% if recent_registrations %}
+                        <div class="list-group list-group-flush">
+                            {% for reg in recent_registrations %}
+                                <div class="list-group-item">
+                                    <div class="d-flex w-100 justify-content-between">
+                                        <h6 class="mb-1">{{ reg.user.name or reg.user.username }}</h6>
+                                        <small class="text-muted">{{ reg.created_at.strftime('%m-%d %H:%M') }}</small>
+                                    </div>
+                                    <p class="mb-1">{{ reg.competition.name }}</p>
+                                    <small>
+                                        {% if reg.status == 'pending' %}
+                                            <span class="badge bg-warning">待审核</span>
+                                        {% elif reg.status == 'registered' %}
+                                            <span class="badge bg-success">已确认</span>
+                                        {% else %}
+                                            <span class="badge bg-secondary">已取消</span>
+                                        {% endif %}
+                                    </small>
+                                </div>
+                            {% endfor %}
+                        </div>
+                    {% else %}
+                        <p class="text-muted mb-0">暂无报名记录</p>
+                    {% endif %}
+                </div>
+            </div>
+        </div>
+    </div>
+</div>
+{% endblock %}

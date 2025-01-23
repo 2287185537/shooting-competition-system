@@ -1,0 +1,243 @@
+{% extends "base.html" %}
+
+{% block title %}编辑比赛{% endblock %}
+
+{% block content %}
+<div class="container">
+    <div class="row justify-content-center">
+        <div class="col-md-8">
+            <div class="card shadow-sm">
+                <div class="card-body">
+                    <div class="d-flex justify-content-between align-items-center mb-4">
+                        <h2 class="card-title mb-0">编辑比赛</h2>
+                        <div class="btn-group">
+                            <a href="{{ url_for('admin.competition_registrations', id=competition.id) }}" 
+                               class="btn btn-outline-primary">
+                                查看报名 ({{ competition.registrations.count() }})
+                            </a>
+                        </div>
+                    </div>
+                    
+                    <form method="POST" class="needs-validation" novalidate>
+                        <div class="mb-3">
+                            <label for="name" class="form-label">比赛名称</label>
+                            <input type="text" 
+                                   class="form-control" 
+                                   id="name" 
+                                   name="name" 
+                                   value="{{ competition.name }}"
+                                   required>
+                            <div class="invalid-feedback">
+                                请输入比赛名称
+                            </div>
+                        </div>
+                        
+                        <div class="row mb-3">
+                            <div class="col-md-6">
+                                <label for="date" class="form-label">比赛日期</label>
+                                <input type="date" 
+                                       class="form-control" 
+                                       id="date" 
+                                       name="date" 
+                                       value="{{ competition.date.strftime('%Y-%m-%d') }}"
+                                       required>
+                                <div class="invalid-feedback">
+                                    请选择比赛日期
+                                </div>
+                            </div>
+                            <div class="col-md-6">
+                                <label for="registration_deadline" class="form-label">报名截止日期</label>
+                                <input type="date" 
+                                       class="form-control" 
+                                       id="registration_deadline" 
+                                       name="registration_deadline" 
+                                       value="{{ competition.registration_deadline.strftime('%Y-%m-%d') }}"
+                                       required>
+                                <div class="invalid-feedback">
+                                    请选择报名截止日期
+                                </div>
+                            </div>
+                        </div>
+                        
+                        <div class="row mb-3">
+                            <div class="col-md-6">
+                                <label for="category" class="form-label">比赛类别</label>
+                                <select class="form-select" 
+                                        id="category" 
+                                        name="category" 
+                                        required>
+                                    <option value="">请选择类别</option>
+                                    {% for category in config['COMPETITION_CATEGORIES'] %}
+                                        <option value="{{ category }}" 
+                                                {% if category == competition.category %}selected{% endif %}>
+                                            {{ category }}
+                                        </option>
+                                    {% endfor %}
+                                </select>
+                                <div class="invalid-feedback">
+                                    请选择比赛类别
+                                </div>
+                            </div>
+                            <div class="col-md-6">
+                                <label for="max_participants" class="form-label">最大参赛人数</label>
+                                <input type="number" 
+                                       class="form-control" 
+                                       id="max_participants" 
+                                       name="max_participants" 
+                                       value="{{ competition.max_participants or '' }}"
+                                       min="1">
+                                <div class="form-text">
+                                    留空表示不限制人数（当前报名人数：{{ competition.registrations.count() }}）
+                                </div>
+                            </div>
+                        </div>
+                        
+                        <div class="mb-3">
+                            <label for="description" class="form-label">比赛描述</label>
+                            <textarea class="form-control" 
+                                      id="description" 
+                                      name="description" 
+                                      rows="5">{{ competition.description or '' }}</textarea>
+                        </div>
+                        
+                        <div class="mb-3">
+                            <label for="status" class="form-label">比赛状态</label>
+                            <select class="form-select" 
+                                    id="status" 
+                                    name="status" 
+                                    required>
+                                <option value="pending" {% if competition.status == 'pending' %}selected{% endif %}>
+                                    报名中
+                                </option>
+                                <option value="ongoing" {% if competition.status == 'ongoing' %}selected{% endif %}>
+                                    进行中
+                                </option>
+                                <option value="completed" {% if competition.status == 'completed' %}selected{% endif %}>
+                                    已结束
+                                </option>
+                            </select>
+                        </div>
+                        
+                        <div class="mb-3">
+                            <div class="form-check">
+                                <input type="checkbox" 
+                                       class="form-check-input" 
+                                       id="allow_same_category" 
+                                       name="allow_same_category" 
+                                       {% if competition.allow_same_category %}checked{% endif %}>
+                                <label class="form-check-label" for="allow_same_category">
+                                    允许选手参加同类别的多个比赛
+                                </label>
+                            </div>
+                        </div>
+                        
+                        <div class="mb-3">
+                            <div class="form-check">
+                                <input type="checkbox" 
+                                       class="form-check-input" 
+                                       id="require_approval" 
+                                       name="require_approval" 
+                                       {% if competition.require_approval %}checked{% endif %}>
+                                <label class="form-check-label" for="require_approval">
+                                    报名需要管理员审核
+                                </label>
+                            </div>
+                        </div>
+                        
+                        <div class="mt-4">
+                            <button type="submit" class="btn btn-primary">
+                                保存修改
+                            </button>
+                            <a href="{{ url_for('admin.dashboard') }}" class="btn btn-outline-secondary ms-2">
+                                返回
+                            </a>
+                            <button type="button" 
+                                    class="btn btn-danger float-end" 
+                                    data-bs-toggle="modal" 
+                                    data-bs-target="#deleteModal">
+                                删除比赛
+                            </button>
+                        </div>
+                    </form>
+                </div>
+            </div>
+        </div>
+    </div>
+</div>
+
+<!-- 删除确认模态框 -->
+<div class="modal fade" id="deleteModal" tabindex="-1">
+    <div class="modal-dialog">
+        <div class="modal-content">
+            <div class="modal-header">
+                <h5 class="modal-title">确认删除</h5>
+                <button type="button" class="btn-close" data-bs-dismiss="modal"></button>
+            </div>
+            <div class="modal-body">
+                <p>您确定要删除这个比赛吗？此操作不可恢复，所有相关的报名和成绩记录都将被删除。</p>
+            </div>
+            <div class="modal-footer">
+                <button type="button" class="btn btn-secondary" data-bs-dismiss="modal">取消</button>
+                <form action="{{ url_for('admin.competition_delete', id=competition.id) }}" method="POST" class="d-inline">
+                    <button type="submit" class="btn btn-danger">确认删除</button>
+                </form>
+            </div>
+        </div>
+    </div>
+</div>
+{% endblock %}
+
+{% block scripts %}
+<script>
+document.addEventListener('DOMContentLoaded', function() {
+    const form = document.querySelector('form');
+    const dateInput = document.getElementById('date');
+    const deadlineInput = document.getElementById('registration_deadline');
+    const statusSelect = document.getElementById('status');
+    
+    // 日期验证
+    function validateDates() {
+        const today = new Date().toISOString().split('T')[0];
+        const date = dateInput.value;
+        const deadline = deadlineInput.value;
+        
+        if (deadline > date) {
+            deadlineInput.setCustomValidity('报名截止日期不能晚于比赛日期');
+            return false;
+        }
+        
+        deadlineInput.setCustomValidity('');
+        return true;
+    }
+    
+    dateInput.addEventListener('change', validateDates);
+    deadlineInput.addEventListener('change', validateDates);
+    
+    // 状态变更确认
+    let originalStatus = statusSelect.value;
+    statusSelect.addEventListener('change', function() {
+        if (this.value === 'completed' && originalStatus !== 'completed') {
+            if (!confirm('将比赛标记为已结束后，将无法再修改成绩。确定要继续吗？')) {
+                this.value = originalStatus;
+            }
+        }
+    });
+    
+    // 表单验证
+    form.addEventListener('submit', function(event) {
+        if (!form.checkValidity() || !validateDates()) {
+            event.preventDefault();
+            event.stopPropagation();
+        }
+        
+        form.classList.add('was-validated');
+        
+        if (form.checkValidity() && validateDates()) {
+            const submitButton = form.querySelector('button[type="submit"]');
+            submitButton.disabled = true;
+            submitButton.innerHTML = '<span class="spinner-border spinner-border-sm"></span> 保存中...';
+        }
+    });
+});
+</script>
+{% endblock %}

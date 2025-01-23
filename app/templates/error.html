@@ -1,0 +1,28 @@
+{% extends "base.html" %}
+
+{% block title %}错误 {{ error_code }}{% endblock %}
+
+{% block content %}
+<div class="container">
+    <div class="row justify-content-center mt-5">
+        <div class="col-md-6 text-center">
+            <div class="error-template">
+                <h1>错误 {{ error_code }}</h1>
+                <div class="error-details my-4">
+                    {{ error_message }}
+                </div>
+                <div class="error-actions">
+                    <a href="{{ url_for('competition.index') }}" class="btn btn-primary">
+                        <span class="bi bi-house"></span> 返回首页
+                    </a>
+                    {% if error_code == 404 %}
+                        <a href="javascript:history.back()" class="btn btn-secondary">
+                            <span class="bi bi-arrow-left"></span> 返回上一页
+                        </a>
+                    {% endif %}
+                </div>
+            </div>
+        </div>
+    </div>
+</div>
+{% endblock %}

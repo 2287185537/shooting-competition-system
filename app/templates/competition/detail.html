@@ -1,0 +1,195 @@
+{% extends "base.html" %}
+
+{% block title %}{{ competition.name }}{% endblock %}
+
+{% block content %}
+<div class="container">
+    <nav aria-label="breadcrumb">
+        <ol class="breadcrumb">
+            <li class="breadcrumb-item"><a href="{{ url_for('competition.list') }}">比赛列表</a></li>
+            <li class="breadcrumb-item active">{{ competition.name }}</li>
+        </ol>
+    </nav>
+
+    <div class="row">
+        <div class="col-md-8">
+            <div class="card shadow-sm">
+                <div class="card-body">
+                    <h1 class="card-title">{{ competition.name }}</h1>
+                    <div class="mb-3">
+                        <span class="badge bg-primary">{{ competition.category }}</span>
+                        {% if competition.status == 'pending' %}
+                            <span class="badge bg-info">报名中</span>
+                        {% elif competition.status == 'ongoing' %}
+                            <span class="badge bg-warning">进行中</span>
+                        {% else %}
+                            <span class="badge bg-secondary">已结束</span>
+                        {% endif %}
+                    </div>
+
+                    <dl class="row mb-0">
+                        <dt class="col-sm-3">比赛日期</dt>
+                        <dd class="col-sm-9">{{ competition.date.strftime('%Y-%m-%d') }}</dd>
+
+                        <dt class="col-sm-3">报名截止</dt>
+                        <dd class="col-sm-9">{{ competition.registration_deadline.strftime('%Y-%m-%d') }}</dd>
+
+                        <dt class="col-sm-3">报名人数</dt>
+                        <dd class="col-sm-9">
+                            {% if competition.max_participants %}
+                                {{ competition.get_participant_count() }}/{{ competition.max_participants }}
+                            {% else %}
+                                {{ competition.get_participant_count() }}/不限
+                            {% endif %}
+                        </dd>
+
+                        {% if competition.description %}
+                            <dt class="col-sm-3">比赛说明</dt>
+                            <dd class="col-sm-9">{{ competition.description }}</dd>
+                        {% endif %}
+                    </dl>
+                </div>
+            </div>
+
+            {% if competition.status != 'pending' %}
+                <div class="card shadow-sm mt-4">
+                    <div class="card-header">
+                        <h5 class="mb-0">比赛成绩</h5>
+                    </div>
+                    <div class="card-body">
+                        {% set scores = {} %}
+                        {% for reg in competition.registrations %}
+                            {% if reg.category not in scores %}
+                                {% set _ = scores.update({reg.category: []}) %}
+                            {% endif %}
+                            {% if reg.get_total_score() > 0 %}
+                                {% set _ = scores[reg.category].append({
+                                    'user': reg.user,
+                                    'score': reg.get_total_score(),
+                                    'ranking': reg.get_ranking()
+                                }) %}
+                            {% endif %}
+                        {% endfor %}
+
+                        {% if scores %}
+                            <div class="accordion" id="scoresAccordion">
+                                {% for category, category_scores in scores.items() %}
+                                    <div class="accordion-item">
+                                        <h2 class="accordion-header">
+                                            <button class="accordion-button {{ '' if loop.first else 'collapsed' }}" 
+                                                    type="button" 
+                                                    data-bs-toggle="collapse" 
+                                                    data-bs-target="#collapse{{ loop.index }}">
+                                                {{ category }}
+                                            </button>
+                                        </h2>
+                                        <div id="collapse{{ loop.index }}" 
+                                             class="accordion-collapse collapse {{ 'show' if loop.first else '' }}">
+                                            <div class="accordion-body">
+                                                <div class="table-responsive">
+                                                    <table class="table table-hover">
+                                                        <thead>
+                                                            <tr>
+                                                                <th>排名</th>
+                                                                <th>选手</th>
+                                                                <th>总分</th>
+                                                            </tr>
+                                                        </thead>
+                                                        <tbody>
+                                                            {% for score in category_scores|sort(attribute='score', reverse=true) %}
+                                                                <tr>
+                                                                    <td>{{ loop.index }}</td>
+                                                                    <td>{{ score.user.name or score.user.username }}</td>
+                                                                    <td>{{ "%.1f"|format(score.score) }}</td>
+                                                                </tr>
+                                                            {% endfor %}
+                                                        </tbody>
+                                                    </table>
+                                                </div>
+                                            </div>
+                                        </div>
+                                    </div>
+                                {% endfor %}
+                            </div>
+                        {% else %}
+                            <p class="text-muted mb-0">暂无成绩</p>
+                        {% endif %}
+                    </div>
+                </div>
+            {% endif %}
+        </div>
+
+        <div class="col-md-4">
+            <!-- 报名状态 -->
+            <div class="card shadow-sm mb-4">
+                <div class="card-body">
+                    {% if current_user.is_authenticated %}
+                        {% set registration = current_user.registrations.filter_by(competition_id=competition.id).first() %}
+                        {% if registration %}
+                            <h5 class="card-title">您已报名</h5>
+                            <p class="card-text">
+                                <small class="text-muted">
+                                    报名时间：{{ registration.created_at.strftime('%Y-%m-%d %H:%M') }}
+                                </small>
+                            </p>
+                            <p class="card-text">
+                                报名类别：{{ registration.category }}
+                            </p>
+                            {% if competition.is_registration_open() %}
+                                <form action="{{ url_for('competition.cancel_registration', id=competition.id) }}" 
+                                      method="POST"
+                                      onsubmit="return confirm('确定要取消报名吗？');">
+                                    <button type="submit" class="btn btn-danger">取消报名</button>
+                                </form>
+                            {% endif %}
+                        {% elif competition.is_registration_open() %}
+                            <h5 class="card-title">报名参赛</h5>
+                            <form action="{{ url_for('competition.register', id=competition.id) }}" method="POST">
+                                <div class="mb-3">
+                                    <label for="category" class="form-label">参赛组别</label>
+                                    <select class="form-select" id="category" name="category" required>
+                                        <option value="">请选择组别</option>
+                                        {% for category in config['COMPETITION_CATEGORIES'] %}
+                                            <option value="{{ category }}">{{ category }}</option>
+                                        {% endfor %}
+                                    </select>
+                                </div>
+                                <button type="submit" class="btn btn-primary">
+                                    确认报名
+                                </button>
+                            </form>
+                        {% else %}
+                            <div class="alert alert-warning mb-0">
+                                报名已截止
+                            </div>
+                        {% endif %}
+                    {% else %}
+                        <div class="alert alert-info mb-0">
+                            请<a href="{{ url_for('auth.login', next=request.path) }}">登录</a>后报名参赛
+                        </div>
+                    {% endif %}
+                </div>
+            </div>
+
+            <!-- 管理选项 -->
+            {% if current_user.is_admin() %}
+                <div class="card shadow-sm">
+                    <div class="card-body">
+                        <h5 class="card-title">管理选项</h5>
+                        <div class="d-grid gap-2">
+                            <a href="{{ url_for('admin.competition_edit', id=competition.id) }}" 
+                               class="btn btn-outline-primary">
+                                编辑比赛
+                            </a>
+                            <a href="{{ url_for('admin.competition_registrations', id=competition.id) }}" 
+                               class="btn btn-outline-secondary">
+                                管理报名 ({{ competition.registrations.count() }})
+                            </a>
+                        </div>
+                    </div>
+                </div>
+            {% endif %}
+        </div>
+    </div>
+</div>
+{% endblock %}

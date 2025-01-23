@@ -1,0 +1,152 @@
+{% extends "base.html" %}
+
+{% block title %}比赛管理{% endblock %}
+
+{% block content %}
+<div class="container">
+    <div class="d-flex justify-content-between align-items-center mb-4">
+        <h2>比赛管理</h2>
+        <a href="{{ url_for('admin.competition_create') }}" class="btn btn-primary">
+            <i class="bi bi-plus-lg"></i> 创建比赛
+        </a>
+    </div>
+
+    {% if competitions.items %}
+        <div class="card shadow-sm">
+            <div class="card-body">
+                <div class="table-responsive">
+                    <table class="table table-hover">
+                        <thead>
+                            <tr>
+                                <th>ID</th>
+                                <th>名称</th>
+                                <th>类别</th>
+                                <th>日期</th>
+                                <th>状态</th>
+                                <th>报名人数</th>
+                                <th>操作</th>
+                            </tr>
+                        </thead>
+                        <tbody>
+                            {% for competition in competitions.items %}
+                                <tr>
+                                    <td>{{ competition.id }}</td>
+                                    <td>
+                                        <a href="{{ url_for('competition.detail', id=competition.id) }}">
+                                            {{ competition.name }}
+                                        </a>
+                                    </td>
+                                    <td>{{ competition.category }}</td>
+                                    <td>{{ competition.date.strftime('%Y-%m-%d') }}</td>
+                                    <td>
+                                        {% if competition.status == 'pending' %}
+                                            <span class="badge bg-info">报名中</span>
+                                        {% elif competition.status == 'ongoing' %}
+                                            <span class="badge bg-warning">进行中</span>
+                                        {% else %}
+                                            <span class="badge bg-secondary">已结束</span>
+                                        {% endif %}
+                                    </td>
+                                    <td>
+                                        {% if competition.max_participants %}
+                                            {{ competition.get_participant_count() }}/{{ competition.max_participants }}
+                                        {% else %}
+                                            {{ competition.get_participant_count() }}/不限
+                                        {% endif %}
+                                    </td>
+                                    <td>
+                                        <a href="{{ url_for('admin.competition_edit', id=competition.id) }}" 
+                                           class="btn btn-sm btn-outline-primary">
+                                            编辑
+                                        </a>
+                                        <a href="{{ url_for('admin.competition_registrations', id=competition.id) }}" 
+                                           class="btn btn-sm btn-outline-secondary">
+                                            报名管理
+                                        </a>
+                                        <button type="button" 
+                                                class="btn btn-sm btn-outline-danger"
+                                                onclick="confirmDelete({{ competition.id }})">
+                                            删除
+                                        </button>
+                                    </td>
+                                </tr>
+                            {% endfor %}
+                        </tbody>
+                    </table>
+                </div>
+
+                <!-- 分页 -->
+                {% if competitions.pages > 1 %}
+                    <nav aria-label="Page navigation" class="mt-4">
+                        <ul class="pagination justify-content-center">
+                            <li class="page-item {{ 'disabled' if not competitions.has_prev }}">
+                                <a class="page-link" 
+                                   href="{{ url_for('admin.competition_list', page=competitions.prev_num) if competitions.has_prev else '#' }}">
+                                    上一页
+                                </a>
+                            </li>
+                            
+                            {% for page in competitions.iter_pages() %}
+                                {% if page %}
+                                    <li class="page-item {{ 'active' if page == competitions.page }}">
+                                        <a class="page-link" href="{{ url_for('admin.competition_list', page=page) }}">
+                                            {{ page }}
+                                        </a>
+                                    </li>
+                                {% else %}
+                                    <li class="page-item disabled">
+                                        <span class="page-link">...</span>
+                                    </li>
+                                {% endif %}
+                            {% endfor %}
+                            
+                            <li class="page-item {{ 'disabled' if not competitions.has_next }}">
+                                <a class="page-link" 
+                                   href="{{ url_for('admin.competition_list', page=competitions.next_num) if competitions.has_next else '#' }}">
+                                    下一页
+                                </a>
+                            </li>
+                        </ul>
+                    </nav>
+                {% endif %}
+            </div>
+        </div>
+    {% else %}
+        <div class="alert alert-info">
+            暂无比赛
+        </div>
+    {% endif %}
+</div>
+
+<!-- 删除确认模态框 -->
+<div class="modal fade" id="deleteModal" tabindex="-1">
+    <div class="modal-dialog">
+        <div class="modal-content">
+            <div class="modal-header">
+                <h5 class="modal-title">确认删除</h5>
+                <button type="button" class="btn-close" data-bs-dismiss="modal"></button>
+            </div>
+            <div class="modal-body">
+                <p>您确定要删除这个比赛吗？</p>
+                <p class="text-danger">此操作不可恢复，所有相关的报名和成绩记录都将被删除！</p>
+            </div>
+            <div class="modal-footer">
+                <button type="button" class="btn btn-secondary" data-bs-dismiss="modal">取消</button>
+                <form id="deleteForm" method="POST">
+                    <button type="submit" class="btn btn-danger">确认删除</button>
+                </form>
+            </div>
+        </div>
+    </div>
+</div>
+{% endblock %}
+
+{% block scripts %}
+<script>
+function confirmDelete(competitionId) {
+    const modal = document.getElementById('deleteModal');
+    document.getElementById('deleteForm').action = `/admin/competition/${competitionId}/delete`;
+    new bootstrap.Modal(modal).show();
+}
+</script>
+{% endblock %}

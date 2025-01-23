@@ -1,0 +1,96 @@
+{% extends "base.html" %}
+
+{% block title %}待审核报名{% endblock %}
+
+{% block content %}
+<div class="container">
+    <div class="d-flex justify-content-between align-items-center mb-4">
+        <h2>待审核报名</h2>
+        <span class="badge bg-primary">{{ registrations|length }} 条待审核</span>
+    </div>
+
+    {% if registrations %}
+        <div class="card shadow-sm">
+            <div class="card-body">
+                <div class="table-responsive">
+                    <table class="table table-hover">
+                        <thead>
+                            <tr>
+                                <th>报名ID</th>
+                                <th>比赛名称</th>
+                                <th>选手</th>
+                                <th>组别</th>
+                                <th>报名时间</th>
+                                <th>操作</th>
+                            </tr>
+                        </thead>
+                        <tbody>
+                            {% for registration in registrations %}
+                                <tr>
+                                    <td>{{ registration.id }}</td>
+                                    <td>
+                                        <a href="{{ url_for('competition.detail', id=registration.competition_id) }}">
+                                            {{ registration.competition.name }}
+                                        </a>
+                                    </td>
+                                    <td>{{ registration.user.name or registration.user.username }}</td>
+                                    <td>{{ registration.category }}</td>
+                                    <td>{{ registration.created_at.strftime('%Y-%m-%d %H:%M') }}</td>
+                                    <td>
+                                        <button class="btn btn-sm btn-success"
+                                                onclick="handleRegistration({{ registration.id }}, 'approve')">
+                                            通过
+                                        </button>
+                                        <button class="btn btn-sm btn-danger ms-1"
+                                                onclick="handleRegistration({{ registration.id }}, 'reject')">
+                                            拒绝
+                                        </button>
+                                    </td>
+                                </tr>
+                            {% endfor %}
+                        </tbody>
+                    </table>
+                </div>
+            </div>
+        </div>
+    {% else %}
+        <div class="alert alert-info">
+            暂无待审核的报名
+        </div>
+    {% endif %}
+</div>
+{% endblock %}
+
+{% block scripts %}
+<script>
+function handleRegistration(registrationId, action) {
+    const confirmMessage = action === 'approve' ? '确定通过此报名申请？' : '确定拒绝此报名申请？';
+    if (!confirm(confirmMessage)) {
+        return;
+    }
+
+    fetch(`/admin/registration/${registrationId}/review`, {
+        method: 'POST',
+        headers: {
+            'Content-Type': 'application/json'
+        },
+        body: JSON.stringify({
+            action: action
+        })
+    })
+    .then(response => response.json())
+    .then(data => {
+        if (data.success) {
+            // 刷新页面显示最新状态
+            location.reload();
+        } else {
+            alert(data.message || '操作失败');
+        }
+    })
+    .catch(error => {
+        console.error('Error:', error);
+        alert('发生错误，请重试');
+    });
+}
+</script>
+{% endblock %}

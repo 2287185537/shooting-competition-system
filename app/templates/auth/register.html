@@ -1,0 +1,208 @@
+{% extends "base.html" %}
+
+{% block title %}注册{% endblock %}
+
+{% block content %}
+<div class="container">
+    <div class="row justify-content-center">
+        <div class="col-md-6 col-lg-5">
+            <div class="card shadow-sm">
+                <div class="card-body p-5">
+                    <h2 class="text-center mb-4">注册账号</h2>
+                    
+                    <form method="POST" class="needs-validation" novalidate>
+                        <div class="mb-3">
+                            <label for="username" class="form-label">用户名</label>
+                            <input type="text" 
+                                   class="form-control" 
+                                   id="username" 
+                                   name="username" 
+                                   pattern="^[a-zA-Z0-9_-]{3,20}$"
+                                   required 
+                                   autofocus>
+                            <div class="invalid-feedback">
+                                用户名应为3-20个字符，只能包含字母、数字、下划线和连字符
+                            </div>
+                        </div>
+                        
+                        <div class="mb-3">
+                            <label for="email" class="form-label">电子邮箱</label>
+                            <input type="email" 
+                                   class="form-control" 
+                                   id="email" 
+                                   name="email" 
+                                   required>
+                            <div class="invalid-feedback">
+                                请输入有效的电子邮箱地址
+                            </div>
+                        </div>
+                        
+                        <div class="mb-3">
+                            <label for="password" class="form-label">密码</label>
+                            <input type="password" 
+                                   class="form-control" 
+                                   id="password" 
+                                   name="password" 
+                                   pattern="^(?=.*[A-Za-z])(?=.*\d)[A-Za-z\d]{8,}$"
+                                   required>
+                            <div class="password-strength mt-1"></div>
+                            <div class="invalid-feedback">
+                                密码至少8个字符，必须包含字母和数字
+                            </div>
+                        </div>
+                        
+                        <div class="mb-3">
+                            <label for="password_confirm" class="form-label">确认密码</label>
+                            <input type="password" 
+                                   class="form-control" 
+                                   id="password_confirm" 
+                                   name="password_confirm" 
+                                   required>
+                            <div class="invalid-feedback">
+                                两次输入的密码不一致
+                            </div>
+                        </div>
+                        
+                        <div class="mb-3">
+                            <div class="form-text">
+                                <small>
+                                    注册即表示您同意我们的
+                                    <a href="#" data-bs-toggle="modal" data-bs-target="#termsModal">服务条款</a>
+                                    和
+                                    <a href="#" data-bs-toggle="modal" data-bs-target="#privacyModal">隐私政策</a>
+                                </small>
+                            </div>
+                        </div>
+                        
+                        <div class="d-grid gap-2">
+                            <button type="submit" class="btn btn-primary">
+                                注册账号
+                            </button>
+                        </div>
+                    </form>
+                    
+                    <div class="mt-4 text-center">
+                        <p>
+                            已有账号？
+                            <a href="{{ url_for('auth.login') }}">立即登录</a>
+                        </p>
+                    </div>
+                </div>
+            </div>
+        </div>
+    </div>
+</div>
+
+<!-- 服务条款模态框 -->
+<div class="modal fade" id="termsModal" tabindex="-1">
+    <div class="modal-dialog">
+        <div class="modal-content">
+            <div class="modal-header">
+                <h5 class="modal-title">服务条款</h5>
+                <button type="button" class="btn-close" data-bs-dismiss="modal"></button>
+            </div>
+            <div class="modal-body">
+                <p>欢迎使用射击比赛管理系统。使用本系统即表示您同意遵守以下条款：</p>
+                <ol>
+                    <li>用户应提供真实、准确的个人信息</li>
+                    <li>遵守相关法律法规和比赛规则</li>
+                    <li>不得进行任何危害系统安全的行为</li>
+                    <li>遵守公平竞争原则</li>
+                </ol>
+            </div>
+        </div>
+    </div>
+</div>
+
+<!-- 隐私政策模态框 -->
+<div class="modal fade" id="privacyModal" tabindex="-1">
+    <div class="modal-dialog">
+        <div class="modal-content">
+            <div class="modal-header">
+                <h5 class="modal-title">隐私政策</h5>
+                <button type="button" class="btn-close" data-bs-dismiss="modal"></button>
+            </div>
+            <div class="modal-body">
+                <p>我们重视您的隐私，承诺：</p>
+                <ol>
+                    <li>仅收集必要的个人信息</li>
+                    <li>采取安全措施保护用户数据</li>
+                    <li>不会向第三方泄露用户信息</li>
+                    <li>用户有权查看和修改个人信息</li>
+                </ol>
+            </div>
+        </div>
+    </div>
+</div>
+{% endblock %}
+
+{% block scripts %}
+<script>
+document.addEventListener('DOMContentLoaded', function() {
+    const form = document.querySelector('form');
+    const password = document.getElementById('password');
+    const passwordConfirm = document.getElementById('password_confirm');
+    
+    // 表单验证
+    form.addEventListener('submit', function(event) {
+        if (!form.checkValidity()) {
+            event.preventDefault();
+            event.stopPropagation();
+        }
+        
+        // 检查密码是否匹配
+        if (password.value !== passwordConfirm.value) {
+            passwordConfirm.setCustomValidity('两次输入的密码不一致');
+            event.preventDefault();
+        } else {
+            passwordConfirm.setCustomValidity('');
+        }
+        
+        form.classList.add('was-validated');
+    });
+    
+    // 密码强度检查
+    password.addEventListener('input', function() {
+        const strengthIndicator = this.parentElement.querySelector('.password-strength');
+        const value = this.value;
+        let strength = 0;
+        
+        if (value.length >= 8) strength++;
+        if (/[a-z]/.test(value)) strength++;
+        if (/[A-Z]/.test(value)) strength++;
+        if (/\d/.test(value)) strength++;
+        if (/[^A-Za-z0-9]/.test(value)) strength++;
+        
+        let strengthText = '';
+        let strengthClass = '';
+        
+        switch(true) {
+            case (strength <= 2):
+                strengthText = '弱';
+                strengthClass = 'text-danger';
+                break;
+            case (strength <= 4):
+                strengthText = '中';
+                strengthClass = 'text-warning';
+                break;
+            case (strength === 5):
+                strengthText = '强';
+                strengthClass = 'text-success';
+                break;
+        }
+        
+        strengthIndicator.textContent = `密码强度：${strengthText}`;
+        strengthIndicator.className = `password-strength mt-1 ${strengthClass}`;
+    });
+    
+    // 实时密码匹配检查
+    passwordConfirm.addEventListener('input', function() {
+        if (password.value !== this.value) {
+            this.setCustomValidity('两次输入的密码不一致');
+        } else {
+            this.setCustomValidity('');
+        }
+    });
+});
+</script>
+{% endblock %}

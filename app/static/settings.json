@@ -1,0 +1,12 @@
+{
+  "competition_categories": [
+    "手枪",
+    "步枪",
+    "气步枪"
+  ],
+  "max_rounds": 3,
+  "registration_close_hours": 24,
+  "enable_notifications": true,
+  "site_name": "射击比赛管理系统",
+  "admin_email": ""
+}

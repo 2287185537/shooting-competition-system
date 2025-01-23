@@ -1,0 +1,261 @@
+{% extends "base.html" %}
+
+{% block title %}比赛报名 - {{ competition.name }}{% endblock %}
+
+{% block content %}
+<div class="container">
+    <nav aria-label="breadcrumb">
+        <ol class="breadcrumb">
+            <li class="breadcrumb-item"><a href="{{ url_for('admin.dashboard') }}">管理面板</a></li>
+            <li class="breadcrumb-item"><a href="{{ url_for('admin.competition_edit', id=competition.id) }}">{{ competition.name }}</a></li>
+            <li class="breadcrumb-item active">报名管理</li>
+        </ol>
+    </nav>
+
+    <div class="card shadow-sm">
+        <div class="card-body">
+            <div class="d-flex justify-content-between align-items-center mb-4">
+                <h2 class="card-title mb-0">报名列表</h2>
+                <div>
+                    <button class="btn btn-outline-secondary" onclick="exportToExcel()">
+                        <i class="bi bi-download"></i> 导出Excel
+                    </button>
+                </div>
+            </div>
+
+            <div class="table-responsive">
+                <table class="table table-hover" id="registrationTable">
+                    <thead>
+                        <tr>
+                            <th>编号</th>
+                            <th>选手</th>
+                            <th>组别</th>
+                            <th>状态</th>
+                            <th>报名时间</th>
+                            <th>总分</th>
+                            <th>排名</th>
+                            <th>操作</th>
+                        </tr>
+                    </thead>
+                    <tbody>
+                        {% for registration in registrations %}
+                            <tr>
+                                <td>{{ registration.id }}</td>
+                                <td>{{ registration.user.name or registration.user.username }}</td>
+                                <td>{{ registration.category }}</td>
+                                <td>
+                                    <select class="form-select form-select-sm registration-status" 
+                                            data-registration-id="{{ registration.id }}"
+                                            {% if competition.status == 'completed' %}disabled{% endif %}>
+                                        <option value="registered" {% if registration.status == 'registered' %}selected{% endif %}>已报名</option>
+                                        <option value="confirmed" {% if registration.status == 'confirmed' %}selected{% endif %}>已确认</option>
+                                        <option value="cancelled" {% if registration.status == 'cancelled' %}selected{% endif %}>已取消</option>
+                                    </select>
+                                </td>
+                                <td>{{ registration.created_at.strftime('%Y-%m-%d %H:%M') }}</td>
+                                <td>{{ "%.1f"|format(registration.get_total_score()) }}</td>
+                                <td>{{ registration.get_ranking() or '-' }}</td>
+                                <td>
+                                    <button type="button" 
+                                            class="btn btn-sm btn-primary"
+                                            data-bs-toggle="modal"
+                                            data-bs-target="#scoreModal"
+                                            data-registration-id="{{ registration.id }}"
+                                            data-username="{{ registration.user.name or registration.user.username }}"
+                                            {% if competition.status == 'completed' %}disabled{% endif %}>
+                                        录入成绩
+                                    </button>
+                                </td>
+                            </tr>
+                        {% endfor %}
+                    </tbody>
+                </table>
+            </div>
+        </div>
+    </div>
+</div>
+
+<!-- 成绩录入模态框 -->
+<div class="modal fade" id="scoreModal" tabindex="-1">
+    <div class="modal-dialog">
+        <div class="modal-content">
+            <div class="modal-header">
+                <h5 class="modal-title">录入成绩</h5>
+                <button type="button" class="btn-close" data-bs-dismiss="modal"></button>
+            </div>
+            <div class="modal-body">
+                <form id="scoreForm" method="POST">
+                    <input type="hidden" id="registration_id" name="registration_id">
+                    
+                    <div class="mb-3">
+                        <label class="form-label">选手</label>
+                        <input type="text" class="form-control" id="username" readonly>
+                    </div>
+                    
+                    <div class="mb-3">
+                        <label for="score" class="form-label">得分</label>
+                        <input type="number" 
+                               class="form-control" 
+                               id="score" 
+                               name="score" 
+                               min="0" 
+                               max="100" 
+                               step="0.1" 
+                               required>
+                        <div class="invalid-feedback">
+                            请输入0-100之间的分数
+                        </div>
+                    </div>
+                    
+                    <div class="mb-3">
+                        <label for="round_number" class="form-label">轮次</label>
+                        <select class="form-select" id="round_number" name="round_number" required>
+                            <option value="1">第1轮</option>
+                            <option value="2">第2轮</option>
+                            <option value="3">第3轮</option>
+                        </select>
+                    </div>
+                    
+                    <div class="mb-3">
+                        <label for="notes" class="form-label">备注</label>
+                        <textarea class="form-control" 
+                                  id="notes" 
+                                  name="notes" 
+                                  rows="3"></textarea>
+                    </div>
+                </form>
+            </div>
+            <div class="modal-footer">
+                <button type="button" class="btn btn-secondary" data-bs-dismiss="modal">取消</button>
+                <button type="button" class="btn btn-primary" onclick="submitScore()">保存</button>
+            </div>
+        </div>
+    </div>
+</div>
+{% endblock %}
+
+{% block scripts %}
+<script>
+document.addEventListener('DOMContentLoaded', function() {
+    // 状态更改处理
+    document.querySelectorAll('.registration-status').forEach(select => {
+        select.addEventListener('change', function() {
+            const registrationId = this.dataset.registrationId;
+            const newStatus = this.value;
+            
+            fetch(`/admin/registration/${registrationId}/status`, {
+                method: 'POST',
+                headers: {
+                    'Content-Type': 'application/json',
+                },
+                body: JSON.stringify({ status: newStatus })
+            })
+            .then(response => response.json())
+            .then(data => {
+                if (data.success) {
+                    showAlert('状态更新成功', 'success');
+                } else {
+                    showAlert('状态更新失败: ' + data.message, 'danger');
+                    // 恢复原来的选项
+                    this.value = this.dataset.originalStatus;
+                }
+            })
+            .catch(error => {
+                console.error('Error:', error);
+                showAlert('发生错误，请重试', 'danger');
+                this.value = this.dataset.originalStatus;
+            });
+        });
+        
+        // 保存原始状态
+        select.dataset.originalStatus = select.value;
+    });
+    
+    // 成绩录入模态框处理
+    const scoreModal = document.getElementById('scoreModal');
+    scoreModal.addEventListener('show.bs.modal', function(event) {
+        const button = event.relatedTarget;
+        const registrationId = button.dataset.registrationId;
+        const username = button.dataset.username;
+        
+        document.getElementById('registration_id').value = registrationId;
+        document.getElementById('username').value = username;
+    });
+});
+
+// 提交成绩
+function submitScore() {
+    const form = document.getElementById('scoreForm');
+    if (!form.checkValidity()) {
+        form.classList.add('was-validated');
+        return;
+    }
+    
+    const registrationId = document.getElementById('registration_id').value;
+    const formData = new FormData(form);
+    
+    fetch(`/admin/score/entry/${registrationId}`, {
+        method: 'POST',
+        body: formData
+    })
+    .then(response => response.json())
+    .then(data => {
+        if (data.success) {
+            showAlert('成绩录入成功', 'success');
+            location.reload();  // 刷新页面以显示新成绩
+        } else {
+            showAlert('成绩录入失败: ' + data.message, 'danger');
+        }
+    })
+    .catch(error => {
+        console.error('Error:', error);
+        showAlert('发生错误，请重试', 'danger');
+    });
+}
+
+// 导出Excel
+function exportToExcel() {
+    const table = document.getElementById('registrationTable');
+    const rows = table.getElementsByTagName('tr');
+    let csv = [];
+    
+    for (let i = 0; i < rows.length; i++) {
+        const row = [], cols = rows[i].querySelectorAll('td, th');
+        for (let j = 0; j < cols.length - 1; j++) {  // 跳过最后一列（操作列）
+            let text = cols[j].innerText;
+            // 如果是状态列，获取选中的选项文本
+            if (j === 3 && i > 0) {
+                const select = cols[j].querySelector('select');
+                if (select) {
+                    text = select.options[select.selectedIndex].text;
+                }
+            }
+            row.push('"' + text.replace(/"/g, '""') + '"');
+        }
+        csv.push(row.join(','));
+    }
+    
+    const csvContent = 'data:text/csv;charset=utf-8,\ufeff' + csv.join('\n');
+    const encodedUri = encodeURI(csvContent);
+    const link = document.createElement('a');
+    link.setAttribute('href', encodedUri);
+    link.setAttribute('download', '比赛报名表.csv');
+    document.body.appendChild(link);
+    link.click();
+    document.body.removeChild(link);
+}
+
+// 显示提示信息
+function showAlert(message, type) {
+    const alert = document.createElement('div');
+    alert.className = `alert alert-${type} alert-dismissible fade show position-fixed top-0 start-50 translate-middle-x mt-3`;
+    alert.style.zIndex = '1050';
+    alert.innerHTML = `
+        ${message}
+        <button type="button" class="btn-close" data-bs-dismiss="alert"></button>
+    `;
+    document.body.appendChild(alert);
+    setTimeout(() => alert.remove(), 3000);
+}
+</script>
+{% endblock %}

@@ -1,0 +1,200 @@
+{% extends "base.html" %}
+
+{% block title %}系统日志{% endblock %}
+
+{% block content %}
+<div class="container">
+    <div class="card shadow-sm">
+        <div class="card-body">
+            <div class="d-flex justify-content-between align-items-center mb-4">
+                <h2 class="card-title mb-0">系统日志</h2>
+                <div>
+                    <button class="btn btn-outline-secondary" onclick="refreshLogs()">
+                        <i class="bi bi-arrow-clockwise"></i> 刷新
+                    </button>
+                    <button class="btn btn-outline-primary ms-2" onclick="downloadLogs()">
+                        <i class="bi bi-download"></i> 导出
+                    </button>
+                </div>
+            </div>
+
+            <div class="table-responsive">
+                <table class="table table-hover" id="logsTable">
+                    <thead>
+                        <tr>
+                            <th>时间</th>
+                            <th>级别</th>
+                            <th>消息</th>
+                        </tr>
+                    </thead>
+                    <tbody>
+                        {% for entry in log_entries %}
+                            <tr class="{{ 'table-danger' if entry.level == 'ERROR' 
+                                        else 'table-warning' if entry.level == 'WARNING'
+                                        else 'table-info' if entry.level == 'INFO'
+                                        else '' }}">
+                                <td>{{ entry.timestamp }}</td>
+                                <td>
+                                    <span class="badge {{ 'bg-danger' if entry.level == 'ERROR'
+                                                        else 'bg-warning' if entry.level == 'WARNING'
+                                                        else 'bg-info' if entry.level == 'INFO'
+                                                        else 'bg-secondary' }}">
+                                        {{ entry.level }}
+                                    </span>
+                                </td>
+                                <td style="white-space: pre-wrap;">{{ entry.message }}</td>
+                            </tr>
+                        {% endfor %}
+                    </tbody>
+                </table>
+            </div>
+
+            {% if not log_entries %}
+                <div class="alert alert-info mb-0">
+                    暂无日志记录
+                </div>
+            {% endif %}
+        </div>
+    </div>
+
+    <div class="card shadow-sm mt-4">
+        <div class="card-body">
+            <h5 class="card-title mb-3">日志管理</h5>
+            <div class="row g-3">
+                <div class="col-md-6">
+                    <div class="card h-100">
+                        <div class="card-body">
+                            <h6 class="card-subtitle mb-2 text-muted">日志级别统计</h6>
+                            <canvas id="logLevelChart"></canvas>
+                        </div>
+                    </div>
+                </div>
+                <div class="col-md-6">
+                    <div class="card h-100">
+                        <div class="card-body">
+                            <h6 class="card-subtitle mb-2 text-muted">最近24小时日志趋势</h6>
+                            <canvas id="logTrendChart"></canvas>
+                        </div>
+                    </div>
+                </div>
+            </div>
+        </div>
+    </div>
+</div>
+{% endblock %}
+
+{% block scripts %}
+<script src="https://cdn.jsdelivr.net/npm/chart.js"></script>
+<script>
+function refreshLogs() {
+    location.reload();
+}
+
+function downloadLogs() {
+    const table = document.getElementById('logsTable');
+    let csv = [];
+    
+    // 添加表头
+    const headers = [];
+    for (let cell of table.rows[0].cells) {
+        headers.push('"' + cell.textContent.trim() + '"');
+    }
+    csv.push(headers.join(','));
+    
+    // 添加数据行
+    for (let i = 1; i < table.rows.length; i++) {
+        const row = [];
+        for (let cell of table.rows[i].cells) {
+            row.push('"' + cell.textContent.trim().replace(/"/g, '""') + '"');
+        }
+        csv.push(row.join(','));
+    }
+    
+    const csvContent = csv.join('\n');
+    const blob = new Blob([csvContent], { type: 'text/csv;charset=utf-8;' });
+    const link = document.createElement('a');
+    link.href = URL.createObjectURL(blob);
+    link.setAttribute('download', `system_logs_${new Date().toISOString().split('T')[0]}.csv`);
+    document.body.appendChild(link);
+    link.click();
+    document.body.removeChild(link);
+}
+
+// 初始化图表
+document.addEventListener('DOMContentLoaded', function() {
+    // 日志级别统计
+    const logLevels = {
+        'ERROR': 0,
+        'WARNING': 0,
+        'INFO': 0,
+        'DEBUG': 0
+    };
+    
+    document.querySelectorAll('#logsTable tbody tr').forEach(row => {
+        const level = row.querySelector('td:nth-child(2)').textContent.trim();
+        logLevels[level]++;
+    });
+    
+    new Chart(document.getElementById('logLevelChart'), {
+        type: 'pie',
+        data: {
+            labels: Object.keys(logLevels),
+            datasets: [{
+                data: Object.values(logLevels),
+                backgroundColor: [
+                    '#dc3545', // ERROR
+                    '#ffc107', // WARNING
+                    '#0dcaf0', // INFO
+                    '#6c757d'  // DEBUG
+                ]
+            }]
+        },
+        options: {
+            responsive: true,
+            plugins: {
+                legend: {
+                    position: 'right'
+                }
+            }
+        }
+    });
+
+    // 24小时日志趋势
+    const hours = Array.from({length: 24}, (_, i) => 
+        new Date(Date.now() - i * 3600000).getHours());
+    const hourCounts = Object.fromEntries(hours.map(h => [h, 0]));
+    
+    document.querySelectorAll('#logsTable tbody tr').forEach(row => {
+        const timestamp = row.querySelector('td:nth-child(1)').textContent;
+        const hour = new Date(timestamp).getHours();
+        if (hour in hourCounts) {
+            hourCounts[hour]++;
+        }
+    });
+    
+    new Chart(document.getElementById('logTrendChart'), {
+        type: 'line',
+        data: {
+            labels: hours.reverse(),
+            datasets: [{
+                label: '日志数量',
+                data: Object.values(hourCounts).reverse(),
+                borderColor: '#0d6efd',
+                tension: 0.1
+            }]
+        },
+        options: {
+            responsive: true,
+            scales: {
+                y: {
+                    beginAtZero: true,
+                    ticks: {
+                        stepSize: 1
+                    }
+                }
+            }
+        }
+    });
+});
+</script>
+{% endblock %}

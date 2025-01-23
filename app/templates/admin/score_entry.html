@@ -1,0 +1,246 @@
+{% extends "base.html" %}
+
+{% block title %}成绩录入 - {{ registration.user.name or registration.user.username }}{% endblock %}
+
+{% block content %}
+<div class="container">
+    <nav aria-label="breadcrumb">
+        <ol class="breadcrumb">
+            <li class="breadcrumb-item"><a href="{{ url_for('admin.dashboard') }}">管理面板</a></li>
+            <li class="breadcrumb-item">
+                <a href="{{ url_for('admin.competition_registrations', id=registration.competition_id) }}">
+                    {{ registration.competition.name }}
+                </a>
+            </li>
+            <li class="breadcrumb-item active">成绩录入</li>
+        </ol>
+    </nav>
+
+    <div class="row">
+        <div class="col-md-4">
+            <div class="card shadow-sm mb-4">
+                <div class="card-body">
+                    <h5 class="card-title">选手信息</h5>
+                    <dl class="row mb-0">
+                        <dt class="col-sm-4">姓名</dt>
+                        <dd class="col-sm-8">{{ registration.user.name or registration.user.username }}</dd>
+                        
+                        <dt class="col-sm-4">组别</dt>
+                        <dd class="col-sm-8">{{ registration.category }}</dd>
+                        
+                        <dt class="col-sm-4">状态</dt>
+                        <dd class="col-sm-8">
+                            <span class="badge bg-{{ 'success' if registration.status == 'confirmed' else 'info' }}">
+                                {{ {'registered': '已报名', 'confirmed': '已确认', 'cancelled': '已取消'}[registration.status] }}
+                            </span>
+                        </dd>
+                        
+                        <dt class="col-sm-4">总分</dt>
+                        <dd class="col-sm-8">{{ "%.1f"|format(registration.get_total_score()) }}</dd>
+                        
+                        <dt class="col-sm-4">排名</dt>
+                        <dd class="col-sm-8">{{ registration.get_ranking() or '-' }}</dd>
+                    </dl>
+                </div>
+            </div>
+        </div>
+
+        <div class="col-md-8">
+            <div class="card shadow-sm">
+                <div class="card-body">
+                    <div class="d-flex justify-content-between align-items-center mb-4">
+                        <h5 class="card-title mb-0">成绩记录</h5>
+                        {% if not competition.status == 'completed' %}
+                            <button type="button" 
+                                    class="btn btn-primary" 
+                                    data-bs-toggle="modal" 
+                                    data-bs-target="#addScoreModal">
+                                添加成绩
+                            </button>
+                        {% endif %}
+                    </div>
+
+                    {% if registration.scores.count() > 0 %}
+                        <div class="table-responsive">
+                            <table class="table table-hover">
+                                <thead>
+                                    <tr>
+                                        <th>轮次</th>
+                                        <th>得分</th>
+                                        <th>录入时间</th>
+                                        <th>备注</th>
+                                        <th>操作</th>
+                                    </tr>
+                                </thead>
+                                <tbody>
+                                    {% for score in registration.scores.order_by('round_number').all() %}
+                                        <tr>
+                                            <td>第{{ score.round_number }}轮</td>
+                                            <td>{{ "%.1f"|format(score.score) }}</td>
+                                            <td>{{ score.created_at.strftime('%Y-%m-%d %H:%M') }}</td>
+                                            <td>{{ score.notes or '' }}</td>
+                                            <td>
+                                                {% if not competition.status == 'completed' %}
+                                                    <button type="button" 
+                                                            class="btn btn-sm btn-outline-primary"
+                                                            onclick="editScore({{ score.id }}, {{ score.score }}, {{ score.round_number }}, '{{ score.notes or '' }}')">
+                                                        编辑
+                                                    </button>
+                                                    <button type="button" 
+                                                            class="btn btn-sm btn-outline-danger ms-1"
+                                                            onclick="deleteScore({{ score.id }})">
+                                                        删除
+                                                    </button>
+                                                {% endif %}
+                                            </td>
+                                        </tr>
+                                    {% endfor %}
+                                </tbody>
+                            </table>
+                        </div>
+                    {% else %}
+                        <p class="text-muted mb-0">暂无成绩记录</p>
+                    {% endif %}
+                </div>
+            </div>
+        </div>
+    </div>
+</div>
+
+<!-- 添加/编辑成绩模态框 -->
+<div class="modal fade" id="addScoreModal" tabindex="-1">
+    <div class="modal-dialog">
+        <div class="modal-content">
+            <div class="modal-header">
+                <h5 class="modal-title" id="modalTitle">添加成绩</h5>
+                <button type="button" class="btn-close" data-bs-dismiss="modal"></button>
+            </div>
+            <div class="modal-body">
+                <form id="scoreForm">
+                    <input type="hidden" id="score_id" name="score_id">
+                    
+                    <div class="mb-3">
+                        <label for="round_number" class="form-label">轮次</label>
+                        <select class="form-select" id="round_number" name="round_number" required>
+                            <option value="1">第1轮</option>
+                            <option value="2">第2轮</option>
+                            <option value="3">第3轮</option>
+                        </select>
+                    </div>
+                    
+                    <div class="mb-3">
+                        <label for="score" class="form-label">得分</label>
+                        <input type="number" 
+                               class="form-control" 
+                               id="score" 
+                               name="score" 
+                               min="0" 
+                               max="100" 
+                               step="0.1" 
+                               required>
+                        <div class="invalid-feedback">
+                            请输入0-100之间的分数
+                        </div>
+                    </div>
+                    
+                    <div class="mb-3">
+                        <label for="notes" class="form-label">备注</label>
+                        <textarea class="form-control" id="notes" name="notes" rows="3"></textarea>
+                    </div>
+                </form>
+            </div>
+            <div class="modal-footer">
+                <button type="button" class="btn btn-secondary" data-bs-dismiss="modal">取消</button>
+                <button type="button" class="btn btn-primary" onclick="saveScore()">保存</button>
+            </div>
+        </div>
+    </div>
+</div>
+{% endblock %}
+
+{% block scripts %}
+<script>
+let scoreModal;
+
+document.addEventListener('DOMContentLoaded', function() {
+    scoreModal = new bootstrap.Modal(document.getElementById('addScoreModal'));
+});
+
+function editScore(id, score, roundNumber, notes) {
+    document.getElementById('modalTitle').textContent = '编辑成绩';
+    document.getElementById('score_id').value = id;
+    document.getElementById('score').value = score;
+    document.getElementById('round_number').value = roundNumber;
+    document.getElementById('notes').value = notes;
+    scoreModal.show();
+}
+
+function saveScore() {
+    const form = document.getElementById('scoreForm');
+    if (!form.checkValidity()) {
+        form.classList.add('was-validated');
+        return;
+    }
+    
+    const scoreId = document.getElementById('score_id').value;
+    const url = scoreId ? 
+        `/admin/score/${scoreId}/edit` : 
+        `/admin/score/entry/{{ registration.id }}`;
+    
+    const formData = new FormData(form);
+    
+    fetch(url, {
+        method: 'POST',
+        body: formData
+    })
+    .then(response => response.json())
+    .then(data => {
+        if (data.success) {
+            showAlert('成绩保存成功', 'success');
+            location.reload();
+        } else {
+            showAlert('成绩保存失败: ' + data.message, 'danger');
+        }
+    })
+    .catch(error => {
+        console.error('Error:', error);
+        showAlert('发生错误，请重试', 'danger');
+    });
+}
+
+function deleteScore(id) {
+    if (!confirm('确定要删除这条成绩记录吗？')) {
+        return;
+    }
+    
+    fetch(`/admin/score/${id}/delete`, {
+        method: 'POST'
+    })
+    .then(response => response.json())
+    .then(data => {
+        if (data.success) {
+            showAlert('成绩删除成功', 'success');
+            location.reload();
+        } else {
+            showAlert('成绩删除失败: ' + data.message, 'danger');
+        }
+    })
+    .catch(error => {
+        console.error('Error:', error);
+        showAlert('发生错误，请重试', 'danger');
+    });
+}
+
+function showAlert(message, type) {
+    const alert = document.createElement('div');
+    alert.className = `alert alert-${type} alert-dismissible fade show position-fixed top-0 start-50 translate-middle-x mt-3`;
+    alert.style.zIndex = '1050';
+    alert.innerHTML = `
+        ${message}
+        <button type="button" class="btn-close" data-bs-dismiss="alert"></button>
+    `;
+    document.body.appendChild(alert);
+    setTimeout(() => alert.remove(), 3000);
+}
+</script>
+{% endblock %}

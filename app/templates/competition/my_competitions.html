@@ -1,0 +1,88 @@
+{% extends "base.html" %}
+
+{% block title %}我的比赛{% endblock %}
+
+{% block content %}
+<div class="container">
+    <h2 class="mb-4">我的比赛</h2>
+
+    {% if registrations %}
+        <div class="row">
+            {% for registration in registrations %}
+                <div class="col-md-6 col-lg-4 mb-4">
+                    <div class="card h-100">
+                        <div class="card-body">
+                            <h5 class="card-title">{{ registration.competition.name }}</h5>
+                            <p class="card-text">
+                                <span class="badge bg-primary">{{ registration.category }}</span>
+                                {% if registration.status == 'registered' %}
+                                    <span class="badge bg-success">已报名</span>
+                                {% elif registration.status == 'confirmed' %}
+                                    <span class="badge bg-info">已确认</span>
+                                {% else %}
+                                    <span class="badge bg-secondary">已取消</span>
+                                {% endif %}
+                            </p>
+                            <p class="card-text">
+                                <small class="text-muted">
+                                    <i class="bi bi-calendar"></i> 比赛日期：{{ registration.competition.date.strftime('%Y-%m-%d') }}
+                                </small>
+                            </p>
+                            {% if registration.competition.status == 'completed' %}
+                                <p class="card-text">
+                                    <strong>总分：</strong> {{ "%.1f"|format(registration.get_total_score()) }}
+                                    {% set ranking = registration.get_ranking() %}
+                                    {% if ranking %}
+                                        <br>
+                                        <strong>排名：</strong> 第{{ ranking }}名
+                                    {% endif %}
+                                </p>
+                                <div class="table-responsive">
+                                    <table class="table table-sm">
+                                        <thead>
+                                            <tr>
+                                                <th>轮次</th>
+                                                <th>得分</th>
+                                            </tr>
+                                        </thead>
+                                        <tbody>
+                                            {% for score in registration.scores.order_by('round_number').all() %}
+                                                <tr>
+                                                    <td>第{{ score.round_number }}轮</td>
+                                                    <td>{{ "%.1f"|format(score.score) }}</td>
+                                                </tr>
+                                            {% endfor %}
+                                        </tbody>
+                                    </table>
+                                </div>
+                            {% endif %}
+                            <div class="mt-3">
+                                <a href="{{ url_for('competition.detail', id=registration.competition_id) }}" 
+                                   class="btn btn-outline-primary">
+                                    查看详情
+                                </a>
+                                {% if registration.competition.is_registration_open() %}
+                                    <form action="{{ url_for('competition.cancel_registration', id=registration.competition_id) }}" 
+                                          method="POST"
+                                          class="d-inline"
+                                          onsubmit="return confirm('确定要取消报名吗？');">
+                                        <button type="submit" class="btn btn-outline-danger">取消报名</button>
+                                    </form>
+                                {% endif %}
+                            </div>
+                        </div>
+                    </div>
+                </div>
+            {% endfor %}
+        </div>
+    {% else %}
+        <div class="alert alert-info">
+            <p class="mb-0">您还没有报名任何比赛</p>
+            <hr>
+            <a href="{{ url_for('competition.list') }}" class="btn btn-primary">
+                查看比赛列表
+            </a>
+        </div>
+    {% endif %}
+</div>
+{% endblock %}

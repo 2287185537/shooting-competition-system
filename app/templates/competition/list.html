@@ -1,0 +1,164 @@
+{% extends "base.html" %}
+
+{% block title %}比赛列表{% endblock %}
+
+{% block content %}
+<div class="container">
+    <div class="d-flex justify-content-between align-items-center mb-4">
+        <h2>比赛列表</h2>
+        <div class="d-flex gap-2">
+            <div class="input-group">
+                <select class="form-select" id="categoryFilter">
+                    <option value="">所有类别</option>
+                    {% for category in config['COMPETITION_CATEGORIES'] %}
+                        <option value="{{ category }}" {% if request.args.get('category') == category %}selected{% endif %}>
+                            {{ category }}
+                        </option>
+                    {% endfor %}
+                </select>
+                <select class="form-select" id="statusFilter">
+                    <option value="">所有状态</option>
+                    <option value="pending" {% if request.args.get('status') == 'pending' %}selected{% endif %}>报名中</option>
+                    <option value="ongoing" {% if request.args.get('status') == 'ongoing' %}selected{% endif %}>进行中</option>
+                    <option value="completed" {% if request.args.get('status') == 'completed' %}selected{% endif %}>已结束</option>
+                </select>
+                <button class="btn btn-outline-secondary" type="button" onclick="applyFilters()">
+                    <i class="bi bi-funnel"></i> 筛选
+                </button>
+            </div>
+            {% if current_user.is_admin() %}
+                <a href="{{ url_for('admin.competition_create') }}" class="btn btn-primary">
+                    <i class="bi bi-plus-lg"></i> 创建比赛
+                </a>
+            {% endif %}
+        </div>
+    </div>
+
+    {% if competitions.items %}
+        <div class="row">
+            {% for competition in competitions.items %}
+                <div class="col-md-6 col-lg-4 mb-4">
+                    <div class="card h-100">
+                        <div class="card-body">
+                            <h5 class="card-title">{{ competition.name }}</h5>
+                            <p class="card-text">
+                                <span class="badge bg-primary">{{ competition.category }}</span>
+                                {% if competition.status == 'pending' %}
+                                    <span class="badge bg-info">报名中</span>
+                                {% elif competition.status == 'ongoing' %}
+                                    <span class="badge bg-warning">进行中</span>
+                                {% else %}
+                                    <span class="badge bg-secondary">已结束</span>
+                                {% endif %}
+                            </p>
+                            <p class="card-text">
+                                <small class="text-muted">
+                                    <i class="bi bi-calendar"></i> 比赛日期：{{ competition.date.strftime('%Y-%m-%d') }}
+                                </small>
+                            </p>
+                            <p class="card-text">
+                                <small class="text-muted">
+                                    <i class="bi bi-people"></i> 报名人数：
+                                    {% if competition.max_participants %}
+                                        {{ competition.get_participant_count() }}/{{ competition.max_participants }}
+                                    {% else %}
+                                        {{ competition.get_participant_count() }}/不限
+                                    {% endif %}
+                                </small>
+                            </p>
+                            {% if competition.registration_deadline %}
+                                <p class="card-text">
+                                    <small class="text-muted">
+                                        <i class="bi bi-clock"></i> 报名截止：{{ competition.registration_deadline.strftime('%Y-%m-%d') }}
+                                    </small>
+                                </p>
+                            {% endif %}
+                            <a href="{{ url_for('competition.detail', id=competition.id) }}" class="btn btn-outline-primary mt-2">
+                                查看详情
+                            </a>
+                            {% if current_user.is_admin() %}
+                                <a href="{{ url_for('admin.competition_edit', id=competition.id) }}" 
+                                   class="btn btn-outline-secondary mt-2">
+                                    编辑
+                                </a>
+                            {% endif %}
+                        </div>
+                    </div>
+                </div>
+            {% endfor %}
+        </div>
+
+        <!-- 分页 -->
+        {% if competitions.pages > 1 %}
+            <nav aria-label="Page navigation" class="mt-4">
+                <ul class="pagination justify-content-center">
+                    <li class="page-item {{ 'disabled' if not competitions.has_prev }}">
+                        <a class="page-link" href="{{ url_for('competition.list', page=competitions.prev_num, category=request.args.get('category'), status=request.args.get('status')) if competitions.has_prev else '#' }}">
+                            上一页
+                        </a>
+                    </li>
+                    
+                    {% for page in competitions.iter_pages() %}
+                        {% if page %}
+                            <li class="page-item {{ 'active' if page == competitions.page }}">
+                                <a class="page-link" href="{{ url_for('competition.list', page=page, category=request.args.get('category'), status=request.args.get('status')) }}">
+                                    {{ page }}
+                                </a>
+                            </li>
+                        {% else %}
+                            <li class="page-item disabled">
+                                <span class="page-link">...</span>
+                            </li>
+                        {% endif %}
+                    {% endfor %}
+                    
+                    <li class="page-item {{ 'disabled' if not competitions.has_next }}">
+                        <a class="page-link" href="{{ url_for('competition.list', page=competitions.next_num, category=request.args.get('category'), status=request.args.get('status')) if competitions.has_next else '#' }}">
+                            下一页
+                        </a>
+                    </li>
+                </ul>
+            </nav>
+        {% endif %}
+    {% else %}
+        <div class="alert alert-info">
+            暂无比赛
+        </div>
+    {% endif %}
+</div>
+{% endblock %}
+
+{% block scripts %}
+<script>
+function applyFilters() {
+    const category = document.getElementById('categoryFilter').value;
+    const status = document.getElementById('statusFilter').value;
+    
+    let url = new URL(window.location.href);
+    if (category) {
+        url.searchParams.set('category', category);
+    } else {
+        url.searchParams.delete('category');
+    }
+    if (status) {
+        url.searchParams.set('status', status);
+    } else {
+        url.searchParams.delete('status');
+    }
+    url.searchParams.delete('page');  // 重置页码
+    
+    window.location.href = url.toString();
+}
+
+// 快捷键支持
+document.addEventListener('keydown', function(e) {
+    if (e.target.tagName === 'BODY') {  // 只在没有输入焦点时触发
+        if (e.key === 'ArrowLeft' && {{ 'true' if competitions.has_prev else 'false' }}) {
+            window.location.href = "{{ url_for('competition.list', page=competitions.prev_num, category=request.args.get('category'), status=request.args.get('status')) if competitions.has_prev else '#' }}";
+        } else if (e.key === 'ArrowRight' && {{ 'true' if competitions.has_next else 'false' }}) {
+            window.location.href = "{{ url_for('competition.list', page=competitions.next_num, category=request.args.get('category'), status=request.args.get('status')) if competitions.has_next else '#' }}";
+        }
+    }
+});
+</script>
+{% endblock %}

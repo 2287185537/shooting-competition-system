@@ -1,0 +1,104 @@
+{% extends "base.html" %}
+
+{% block title %}首页{% endblock %}
+
+{% block content %}
+<div class="container">
+    <div class="jumbotron bg-light p-5 rounded">
+        <h1 class="display-4">射击比赛管理系统</h1>
+        <p class="lead">欢迎使用射击比赛报名与成绩管理系统，这里可以查看最新比赛信息、进行报名并跟踪比赛成绩。</p>
+        {% if not current_user.is_authenticated %}
+            <hr class="my-4">
+            <p>立即注册或登录以参加比赛！</p>
+            <a class="btn btn-primary btn-lg" href="{{ url_for('auth.register') }}" role="button">注册账号</a>
+            <a class="btn btn-outline-primary btn-lg" href="{{ url_for('auth.login') }}" role="button">登录</a>
+        {% endif %}
+    </div>
+
+    <div class="row mt-4">
+        <div class="col-md-8">
+            <h2>近期比赛</h2>
+            {% if upcoming_competitions %}
+                <div class="row">
+                    {% for competition in upcoming_competitions %}
+                        <div class="col-md-6 mb-4">
+                            <div class="card h-100 competition-card">
+                                <div class="card-body">
+                                    <h5 class="card-title">{{ competition.name }}</h5>
+                                    <p class="card-text">
+                                        <span class="badge bg-primary">{{ competition.category }}</span>
+                                        {% if competition.status == 'pending' %}
+                                            <span class="badge bg-info">报名中</span>
+                                        {% elif competition.status == 'ongoing' %}
+                                            <span class="badge bg-warning">进行中</span>
+                                        {% else %}
+                                            <span class="badge bg-secondary">已结束</span>
+                                        {% endif %}
+                                    </p>
+                                    <p class="card-text">
+                                        <small class="text-muted">
+                                            <i class="bi bi-calendar"></i> 比赛日期：{{ competition.date.strftime('%Y-%m-%d') }}
+                                        </small>
+                                    </p>
+                                    {% if competition.max_participants %}
+                                        <p class="card-text">
+                                            <small class="text-muted">
+                                                名额：{{ competition.get_participant_count() }}/{{ competition.max_participants }}
+                                            </small>
+                                        </p>
+                                    {% endif %}
+                                    <a href="{{ url_for('competition.detail', id=competition.id) }}" class="btn btn-outline-primary">查看详情</a>
+                                </div>
+                            </div>
+                        </div>
+                    {% endfor %}
+                </div>
+                <div class="text-center mt-3">
+                    <a href="{{ url_for('competition.list') }}" class="btn btn-primary">查看所有比赛</a>
+                </div>
+            {% else %}
+                <div class="alert alert-info">
+                    暂无近期比赛安排
+                </div>
+            {% endif %}
+        </div>
+
+        <div class="col-md-4">
+            <div class="card">
+                <div class="card-header">
+                    <h5 class="card-title mb-0">快速链接</h5>
+                </div>
+                <div class="list-group list-group-flush">
+                    <a href="{{ url_for('competition.list') }}" class="list-group-item list-group-item-action">
+                        <i class="bi bi-list-ul"></i> 比赛列表
+                    </a>
+                    {% if current_user.is_authenticated %}
+                        <a href="{{ url_for('competition.my_competitions') }}" class="list-group-item list-group-item-action">
+                            <i class="bi bi-person"></i> 我的比赛
+                        </a>
+                        {% if current_user.is_admin() %}
+                            <a href="{{ url_for('admin.dashboard') }}" class="list-group-item list-group-item-action">
+                                <i class="bi bi-gear"></i> 管理面板
+                            </a>
+                        {% endif %}
+                    {% endif %}
+                </div>
+            </div>
+
+            <div class="card mt-4">
+                <div class="card-header">
+                    <h5 class="card-title mb-0">通知公告</h5>
+                </div>
+                <div class="card-body">
+                    <p class="card-text">欢迎使用射击比赛管理系统！</p>
+                    <p class="card-text">
+                        <small class="text-muted">
+                            如有任何问题，请联系管理员。
+                        </small>
+                    </p>
+                </div>
+            </div>
+        </div>
+    </div>
+</div>
+{% endblock %}

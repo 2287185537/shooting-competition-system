@@ -1,0 +1,91 @@
+{% extends "base.html" %}
+
+{% block title %}我的通知{% endblock %}
+
+{% block content %}
+<div class="container">
+    <div class="card shadow-sm">
+        <div class="card-body">
+            <div class="d-flex justify-content-between align-items-center mb-4">
+                <h2 class="card-title mb-0">我的通知</h2>
+                <button class="btn btn-outline-secondary" onclick="markAllAsRead()">
+                    <i class="bi bi-check2-all"></i> 全部标为已读
+                </button>
+            </div>
+
+            {% if notifications %}
+                <div class="list-group">
+                    {% for notification in notifications %}
+                        <div class="list-group-item list-group-item-action {% if not notification.is_read %}bg-light{% endif %}">
+                            <div class="d-flex w-100 justify-content-between align-items-center">
+                                <h5 class="mb-1">
+                                    {% if not notification.is_read %}
+                                        <span class="badge bg-primary me-2">新</span>
+                                    {% endif %}
+                                    {{ notification.title }}
+                                </h5>
+                                <small class="text-muted">{{ notification.created_at.strftime('%Y-%m-%d %H:%M') }}</small>
+                            </div>
+                            <p class="mb-1">{{ notification.message }}</p>
+                            {% if not notification.is_read %}
+                                <button class="btn btn-sm btn-outline-primary mt-2"
+                                        onclick="markAsRead({{ notification.id }})">
+                                    标为已读
+                                </button>
+                            {% endif %}
+                        </div>
+                    {% endfor %}
+                </div>
+            {% else %}
+                <div class="alert alert-info mb-0">
+                    暂无通知
+                </div>
+            {% endif %}
+        </div>
+    </div>
+</div>
+{% endblock %}
+
+{% block scripts %}
+<script>
+function markAsRead(notificationId) {
+    fetch(`/notifications/${notificationId}/read`, {
+        method: 'POST',
+    })
+    .then(response => response.json())
+    .then(data => {
+        if (data.success) {
+            location.reload();
+        } else {
+            alert('操作失败，请重试');
+        }
+    })
+    .catch(error => {
+        console.error('Error:', error);
+        alert('发生错误，请重试');
+    });
+}
+
+function markAllAsRead() {
+    if (!confirm('确定要将所有通知标记为已读吗？')) {
+        return;
+    }
+    
+    fetch('/notifications/mark_all_read', {
+        method: 'POST',
+    })
+    .then(response => response.json())
+    .then(data => {
+        if (data.success) {
+            location.reload();
+        } else {
+            alert('操作失败，请重试');
+        }
+    })
+    .catch(error => {
+        console.error('Error:', error);
+        alert('发生错误，请重试');
+    });
+}
+</script>
+{% endblock %}
